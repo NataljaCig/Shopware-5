@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+    <services>
+        <service id="icepay.payment_method_setup_service" class="Icepay\Components\PaymentMethodSetup">
+            <argument type="service" id="service_container" />
+            <argument type="service" id="shopware.plugin.config_reader" />
+            <argument type="service" id="models" />
+            <argument type="service" id="shopware.plugin_payment_installer" />
+        </service>
+
+        <service id="icepay.subscriber.checkout" class="Icepay\Subscriber\Frontend\Checkout">
+            <argument>%icepay.plugin_name%</argument>
+            <argument>%icepay.plugin_dir%</argument>
+            <argument type="service" id="shopware.plugin.cached_config_reader" />
+            <argument type="service" id="models" />
+            <tag name="shopware.event_subscriber" />
+        </service>
+        <service id="icepay.subscriber.payment" class="Icepay\Subscriber\Payment">
+            <tag name="shopware.event_subscriber" />
+        </service>
+
+    </services>
+</container>

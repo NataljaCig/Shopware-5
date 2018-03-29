@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/5.3/engine/Shopware/Components/Plugin/schema/config.xsd">
+    <elements>
+        <element required="true" type="text" scope="locale">
+            <name>merchantId</name>
+            <label lang="de">Merchant ID</label>
+            <label lang="en">Merchant ID</label>
+            <value></value>
+            <description lang="de">ICEPAY merchant account ID</description>
+            <description lang="en">ICEPAY merchant account ID</description>
+        </element>
+        <element required="true" type="text" scope="locale">
+            <name>secretKey</name>
+            <label lang="de">Secret Key</label>
+            <label lang="en">Secret Key</label>
+            <value></value>
+            <description lang="de">Secret Key</description>
+            <description lang="en">Secret Key</description>
+        </element>
+        <element type="button">
+        <name>btnSync</name>
+        <label lang="de">Synchronize</label>
+        <label lang="en">Synchronize</label>
+        <options>
+            <handler>
+                <![CDATA[
+                    function(button) {
+	                        openNewModule('Shopware.apps.IcepayPaymentMethodSync');
+                        }
+                    ]]>
+            </handler>
+        </options>
+        </element>
+    </elements>
+</config>
