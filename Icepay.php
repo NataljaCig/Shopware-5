@@ -12,6 +12,9 @@ use Shopware\Components\Plugin\Context\InstallContext;
 use Shopware\Components\Plugin\Context\UninstallContext;
 use Shopware\Models\Payment\Payment;
 use Icepay\Bootstrap\Database;
+use Doctrine\ORM\Tools\SchemaTool;
+use Icepay\Models\PaymentMethod;
+use Icepay\Models\RawData;
 
 class Icepay extends Plugin
 {
@@ -20,8 +23,18 @@ class Icepay extends Plugin
      */
     public function install(InstallContext $context)
     {
+        parent::install($context);
         /** @var \Shopware\Components\Plugin\PaymentInstaller $installer */
         $installer = $this->container->get('shopware.plugin_payment_installer');
+
+
+        $schemaTool = new SchemaTool($this->container->get('models'));
+
+        $tables =array(
+            $this->container->get('models')->getClassMetadata(PaymentMethod::class),
+            $this->container->get('models')->getClassMetadata(RawData::class),
+        );
+        $schemaTool->updateSchema($tables, true);
 
 //        $database = new Database(
 //            $this->container->get('models')

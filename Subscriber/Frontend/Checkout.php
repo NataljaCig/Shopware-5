@@ -4,6 +4,8 @@ namespace Icepay\Subscriber\Frontend;
 use Enlight\Event\SubscriberInterface;
 use Shopware\Components\Plugin\ConfigReader;
 use Shopware\Models\Payment\Payment;
+use Icepay\Models\RawData;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 require_once(dirname(__FILE__) . '/../../restapi/src/Icepay/API/Autoloader.php');
 
@@ -11,8 +13,17 @@ require_once(dirname(__FILE__) . '/../../restapi/src/Icepay/API/Autoloader.php')
 class Checkout implements SubscriberInterface
 {
 
+    /**
+     *
+     * @var string
+     */
     private $pluginDirectory;
-    private $config;
+
+    /**
+     *
+     * @var ContainerInterface
+     */
+    protected $container;
 
     /**
      *
@@ -20,14 +31,20 @@ class Checkout implements SubscriberInterface
      */
     private $modelManager;
 
+    /**
+     *
+     * @var array
+     */
     private $filteredPaymentMethods;
 
 
-    public function __construct($pluginName, $pluginDirectory, ConfigReader $configReader, ModelManager $modelManager)
+
+
+    public function __construct($pluginDirectory, ModelManager $modelManager, ContainerInterface $container)
     {
-        $this->pluginDirectory = $pluginDirectory;
-        $this->config = $configReader->getByPluginName($pluginName);
+        $this->pluginDirectory = $pluginDirectory;;
         $this->modelManager = $modelManager;
+        $this->container = $container;
     }
 
     public static function getSubscribedEvents()
@@ -39,46 +56,26 @@ class Checkout implements SubscriberInterface
         ];
     }
 
-    protected function getFilteredPaymentmethods()
-    {
-        if (!$availablePaymentMethods) {
-            $basket = Shopware()->Modules()->Basket();
-            $session = Shopware()->Session();
 
-            $amount = Shopware()->Modules()->Basket()->sGetAmount();
-            $totalAmount = empty($amount) ? 0 : array_shift($amount);
-
-            $currency = Shopware()->Shop()->getCurrency()->getCurrency();
-            $country = 'NL'; //TODO
-
-
-            $filter = new \Icepay_Webservice_Paymentmethod();
-//        $filter = $icepay->filtering();
-//        $filter->loadFromArray(unserialize($stored_payment_methods->row['raw_pm_data']));
-            $filter->loadFromArray(unserialize('a:12:{i:0;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:15:"ACHTERAFBETALEN";s:11:"Description";s:15:"AchterafBetalen";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:34:"Default payment by AchterafBetalen";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:1;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:10:"CREDITCARD";s:11:"Description";s:11:"Credit card";s:7:"Issuers";a:6:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:4:"AMEX";s:11:"Description";s:16:"American Express";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:428:"AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR, AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:1;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:10:"CARTEBLEUE";s:11:"Description";s:14:"Carte Bancaire";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"FR";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:2;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:14:"CCAUTOCHECKOUT";s:11:"Description";s:36:"Automatic billing vaulted creditcard";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:653:"AED, AFN, ALL, AMD, ARS, AUD, AZN, BAM, BBD, BDT, BGN, BHD, BMD, BND, BOB, BRL, BSD, BWP, BZD, CAD, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EEK, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHC, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, ISK, JMD, JOD, JPY, KES, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LTL, LVL, MAD, MDL, MGA, MKD, MNT, MOP, MRO, MUR, MVR, MWK, MXN, MYR, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, RON, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SKK, SLL, SOS, SRD, STD, SYP, SZL, THB, TJS, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VEB, VND, VUV, WST, YER, ZAR, ZMK, ZWD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:3;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:13:"FUNDSTRANSFER";s:11:"Description";s:14:"Funds Transfer";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:4;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:6:"MASTER";s:11:"Description";s:11:"Master Card";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:858:"AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR, AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR, AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR, AED, ARS, AUD, BGN, BRL, CAD, CHF, CLP, CNY, CZK, DKK, EEK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, ISK, JPY, KRW, LTL, LVL, MXN, MYR, NOK, NZD, PHP, PLN, RON, RUB, SEK, SGD, SKK, THB, TRY, TWD, UAH, USD, VND, ZAR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:5;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:4:"VISA";s:11:"Description";s:4:"VISA";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:2618:"AED, AFN, ALL, AMD, ARS, AUD, AZN, BAM, BBD, BDT, BGN, BHD, BMD, BND, BOB, BRL, BSD, BWP, BZD, CAD, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EEK, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHC, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, ISK, JMD, JOD, JPY, KES, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LTL, LVL, MAD, MDL, MGA, MKD, MNT, MOP, MRO, MUR, MVR, MWK, MXN, MYR, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, RON, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SKK, SLL, SOS, SRD, STD, SYP, SZL, THB, TJS, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VEB, VND, VUV, WST, YER, ZAR, ZMK, ZWD, AED, AFN, ALL, AMD, ARS, AUD, AZN, BAM, BBD, BDT, BGN, BHD, BMD, BND, BOB, BRL, BSD, BWP, BZD, CAD, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EEK, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHC, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, ISK, JMD, JOD, JPY, KES, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LTL, LVL, MAD, MDL, MGA, MKD, MNT, MOP, MRO, MUR, MVR, MWK, MXN, MYR, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, RON, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SKK, SLL, SOS, SRD, STD, SYP, SZL, THB, TJS, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VEB, VND, VUV, WST, YER, ZAR, ZMK, ZWD, AED, AFN, ALL, AMD, ARS, AUD, AZN, BAM, BBD, BDT, BGN, BHD, BMD, BND, BOB, BRL, BSD, BWP, BZD, CAD, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EEK, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHC, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, ISK, JMD, JOD, JPY, KES, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LTL, LVL, MAD, MDL, MGA, MKD, MNT, MOP, MRO, MUR, MVR, MWK, MXN, MYR, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, RON, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SKK, SLL, SOS, SRD, STD, SYP, SZL, THB, TJS, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VEB, VND, VUV, WST, YER, ZAR, ZMK, ZWD, AED, AFN, ALL, AMD, ARS, AUD, AZN, BAM, BBD, BDT, BGN, BHD, BMD, BND, BOB, BRL, BSD, BWP, BZD, CAD, CHF, CLP, CNY, COP, CRC, CVE, CZK, DJF, DKK, DOP, DZD, EEK, EGP, ETB, EUR, FJD, FKP, GBP, GEL, GHC, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, ISK, JMD, JOD, JPY, KES, KMF, KPW, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LTL, LVL, MAD, MDL, MGA, MKD, MNT, MOP, MRO, MUR, MVR, MWK, MXN, MYR, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, RON, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SKK, SLL, SOS, SRD, STD, SYP, SZL, THB, TJS, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VEB, VND, VUV, WST, YER, ZAR, ZMK, ZWD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:2;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:6:"DDEBIT";s:11:"Description";s:12:"Direct Debit";s:7:"Issuers";a:2:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:12:"IDEALINCASSO";s:11:"Description";s:23:"Automatic incasso Ideal";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}}}i:1;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"INCASSO";s:11:"Description";s:20:"Automatische incasso";s:9:"Countries";a:22:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:2;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CZ";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:3;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"EE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:4;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"FI";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:5;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"FR";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:6;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"DE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:7;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"HU";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:8;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"IR";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:9;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"IT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:10;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"LI";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:11;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"LU";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:12;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"MT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:13;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:14;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:15;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"SI";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:16;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"SK";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:17;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"ES";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:18;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"SE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:19;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CH";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:20;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"GB";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}i:21;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:200000;}}}}}i:3;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:3:"EPS";s:11:"Description";s:3:"Eps";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:3:"Eps";s:9:"Countries";a:2:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"DE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:4;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:8:"GIFTCARD";s:11:"Description";s:17:"GiftCard/YourGift";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:8:"YOURGIFT";s:11:"Description";s:8:"YourGift";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:5;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:7:"GIROPAY";s:11:"Description";s:7:"GIROPAY";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:7:"Giropay";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"DE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:6;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:5:"IDEAL";s:11:"Description";s:5:"iDEAL";s:7:"Issuers";a:10:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"ABNAMRO";s:11:"Description";s:8:"ABN AMRO";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:1;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"ASNBANK";s:11:"Description";s:8:"ASN Bank";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:2;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:4:"BUNQ";s:11:"Description";s:4:"bunq";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:3;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:3:"ING";s:11:"Description";s:3:"ING";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:4;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:4:"KNAB";s:11:"Description";s:4:"KNAB";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:5;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:8:"RABOBANK";s:11:"Description";s:8:"Rabobank";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:6;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"SNSBANK";s:11:"Description";s:8:"SNS Bank";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:7;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:12:"SNSREGIOBANK";s:11:"Description";s:10:"Regio Bank";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:8;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:11:"TRIODOSBANK";s:11:"Description";s:12:"Triodos Bank";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:9;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:11:"VANLANSCHOT";s:11:"Description";s:12:"Van Lanschot";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:7;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:10:"MISTERCASH";s:11:"Description";s:22:"BanContact Mister Cash";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:10:"MISTERCASH";s:11:"Description";s:21:"BanContact MisterCash";s:9:"Countries";a:2:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:8;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:6:"PAYPAL";s:11:"Description";s:6:"Paypal";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:14:"Default Paypal";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:118:"AUD, BRL, CAD, CHF, CZK, DKK, EUR, GBP, HKD, HUF, ILS, JPY, MXN, MYR, NOK, NZD, PHP, PLN, SEK, SGD, THB, TRY, TWD, USD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:9;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:11:"PAYSAFECARD";s:11:"Description";s:11:"paysafecard";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:11:"paysafecard";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:63:"ARS, CHF, CZK, DKK, EUR, GBP, HUF, MXN, NOK, PLN, RON, SEK, USD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:10;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:5:"PHONE";s:11:"Description";s:19:"09xx service number";s:7:"Issuers";a:3:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:4:"PBAR";s:11:"Description";s:40:"Progress bar, PPM with predefined amount";s:9:"Countries";a:17:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"HU";s:8:"Currency";s:3:"HUF";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BR";s:8:"Currency";s:3:"BRL";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:2;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CH";s:8:"Currency";s:8:"CHF, CHF";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:3;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:4;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:5;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:6;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"GB";s:8:"Currency";s:3:"GBP";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:7;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"IT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:8;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"LU";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:9;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PL";s:8:"Currency";s:3:"PLN";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:10;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"SK";s:8:"Currency";s:3:"SKK";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:11;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"ES";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:12;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CZ";s:8:"Currency";s:3:"CZK";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:13;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"DE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:14;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CA";s:8:"Currency";s:3:"CAD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:15;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AU";s:8:"Currency";s:3:"AUD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:16;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}i:1;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:3:"PPC";s:11:"Description";s:25:"Pay per call fixed amount";s:9:"Countries";a:3:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:0;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:0;}i:2;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"FR";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:0;}}}i:2;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:3:"PPM";s:11:"Description";s:50:"Pay per minute without predefined amount eg stream";s:9:"Countries";a:17:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BR";s:8:"Currency";s:3:"BRL";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:1;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CH";s:8:"Currency";s:8:"CHF, CHF";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:2;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:3;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"NL";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:4;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"BE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:5;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"GB";s:8:"Currency";s:3:"GBP";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:6;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"IT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:7;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"LU";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:8;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PL";s:8:"Currency";s:3:"PLN";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:9;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"SK";s:8:"Currency";s:3:"SKK";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:10;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"ES";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:11;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CZ";s:8:"Currency";s:3:"CZK";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:12;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"DE";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:13;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"CA";s:8:"Currency";s:3:"CAD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:14;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"AU";s:8:"Currency";s:3:"AUD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:15;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"PT";s:8:"Currency";s:3:"EUR";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}i:16;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"HU";s:8:"Currency";s:3:"HUF";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}i:11;O:8:"stdClass":3:{s:17:"PaymentMethodCode";s:4:"WIRE";s:11:"Description";s:13:"Wire Transfer";s:7:"Issuers";a:1:{i:0;O:8:"stdClass":3:{s:13:"IssuerKeyword";s:7:"DEFAULT";s:11:"Description";s:13:"Wire transfer";s:9:"Countries";a:1:{i:0;O:8:"stdClass":4:{s:11:"CountryCode";s:2:"00";s:8:"Currency";s:13:"EUR, GBP, USD";s:13:"MinimumAmount";i:1;s:13:"MaximumAmount";i:1000000000;}}}}}}'));
-            $filter->filterByCurrency($currency)
-                ->filterByCountry($country)
-                ->filterByAmount((int)(string)($totalAmount * 100));
-
-            $this->filteredPaymentMethods = $filter->getFilteredPaymentmethods();
-        }
-
-        return isset($this->filteredPaymentMethods) ? $this->filteredPaymentMethods : []; //TODO: arr vs obj
-    }
-
+    /**
+     * Filter ICEPAY payment methods by country, amount and etc.
+     * @param \Enlight_Event_EventArgs $args
+     * @return mixed
+     */
     public function onDataFilter(\Enlight_Event_EventArgs $args)
     {
         $paymentMeans = $args->getReturn();
 
+        //get list of available ICEPAY payment methods
         $availablePaymentMethods = array();
         foreach ($this->getFilteredPaymentmethods() as $pm) {
             $availablePaymentMethods[] = $pm->PaymentMethodCode;
         }
 
-        $availablePaymentMeans = [];
+        //filter out unavailable ICEPAY payment methods
+        $filteredPaymentMeans = [];
         foreach ($paymentMeans as $paymentMean) {
-            if ('IcepayPaymentMethod' === $paymentMean['class']
-                && substr($paymentMean['name'], 0, 7) === "icepay_"
+            if (substr($paymentMean['class'], 0, 7) === "icepay_"
                 && !in_array(substr($paymentMean['name'], 7), $availablePaymentMethods)
             ) {
                 continue;
@@ -91,15 +88,17 @@ class Checkout implements SubscriberInterface
     }
 
 
+    /**
+     * Prepare data for credit card issuer drop-down-lists
+     * @param \Enlight_Hook_HookArgs $args
+     */
     public function onPostDispatch(\Enlight_Hook_HookArgs $args)
     {
 
         /** @var \Enlight_Controller_Action $controller */
         $controller = $args->get('subject');
         $view = $controller->View();
-        $pm = $controller->Request()->getParam('payment');
-        $payment = $this->modelManager->getRepository(Payment::class)->find($pm);
-
+        
         $availableIssuers = array();
         foreach ($this->getFilteredPaymentmethods() as $pm) {
 
@@ -114,6 +113,57 @@ class Checkout implements SubscriberInterface
         $view->assign('sIssuers', $availableIssuers);
         $view->addTemplateDir($this->pluginDirectory . '/Resources/views');
 
+    }
+
+
+    /**
+     * Get list of available ICEPAY payment methods
+     * @return array
+     */
+    protected function getFilteredPaymentmethods()
+    {
+
+        if (!isset($this->filteredPaymentMethods)) {
+
+            $basket = Shopware()->Modules()->Basket();
+            $session = Shopware()->Session();
+            $countryId = $session->get('sCountry'); //Todo: check null
+
+            $amount = Shopware()->Modules()->Basket()->sGetAmount();
+            $totalAmount = empty($amount) ? 0 : array_shift($amount);
+
+            $currency = Shopware()->Shop()->getCurrency()->getCurrency();
+            $country = $this->getCountryCode($countryId);
+
+            $rawData = $this->modelManager->getRepository(RawData::class)->findOneBy(array('scope' => 1));  //TODO: if null
+
+            $filter = new \Icepay_Webservice_Paymentmethod();
+            $filter->loadFromArray(unserialize($rawData->getRawPmData()));
+            $filter->filterByCurrency($currency)
+                ->filterByCountry($country)
+                ->filterByAmount((int)(string)($totalAmount * 100));
+
+            $this->filteredPaymentMethods = $filter->getFilteredPaymentmethods();
+        }
+
+        return $this->filteredPaymentMethods;
+    }
+
+
+    /**
+     * Get ISO country code by Shopware country ID
+     *
+     * @param $countryId
+     * @return string
+     */
+    private function getCountryCode($countryId)
+    {
+        $countryRepository = $this->container->get('shopware_storefront.country_gateway');
+        $context = $this->container->get('shopware_storefront.context_service')->getShopContext();
+
+        $country = $countryRepository->getCountry($countryId, $context);
+
+        return $country->getIso();
     }
 
 

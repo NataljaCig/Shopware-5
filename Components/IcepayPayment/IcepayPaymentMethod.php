@@ -5,18 +5,15 @@ namespace Icepay\Components\IcepayPayment;
 
 
 use Doctrine\ORM\AbstractQuery;
-use ShopwarePlugin\PaymentMethods\Components\GenericPaymentMethod;
+use ShopwarePlugin\PaymentMethods\Components\BasePaymentMethod;
 
 /**
  *
  * Class IcepayPaymentMethod
  * Used to handle ICEPAY payments
  */
-/*abstract*/ class IcepayPaymentMethod extends GenericPaymentMethod
+class IcepayPaymentMethod extends BasePaymentMethod
 {
-
-    private $currentPaymentMethod;
-
     /**
      * {@inheritdoc}
      */
@@ -24,13 +21,12 @@ use ShopwarePlugin\PaymentMethods\Components\GenericPaymentMethod;
     {
         if(!empty($paymentData)) {
             $sErrorFlag = [];
-            $issuerFieldName = "sIcepayIssuer" . (int)$paymentData['payment'];
 
-            $value = $paymentData[$issuerFieldName] ?: '';
-            $value = trim($value);
+            $index = trim($paymentData['payment']);
+            $issuers = $paymentData['sIcepayIssuer'];
 
-            if (empty($value)) {
-                $sErrorFlag[$issuerFieldName] = true;
+            if(!empty($index) && (!isset($issuers[(int)$index]) || empty($issuers[(int)$index]) )) {
+                $sErrorFlag['sIcepayIssuer'] = true;
             }
 
             if (count($sErrorFlag)) {
@@ -53,19 +49,19 @@ use ShopwarePlugin\PaymentMethods\Components\GenericPaymentMethod;
     public function savePaymentData($userId, \Enlight_Controller_Request_Request $request)
     {
         $paymentId = (int)$request->getParam('payment');
-        $issuerFieldName = "sIcepayIssuer".$paymentId;
 
         $paymentMean = Shopware()->Models()->getRepository('\Shopware\Models\Payment\Payment')->
             getPaymentsQuery(['id' => $paymentId])->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
 
         if (substr( $paymentMean['name'], 0, 7 ) === "icepay_") {
 
-            $this->currentPaymentMethod = $paymentMean;
-
             $lastPayment = $this->getCurrentPaymentDataAsArray($userId);
 
+            $issuers = $request->getParam('sIcepayIssuer');
+            $issuer = isset($issuers[$paymentId]) ? $issuers[$paymentId] : '';
+
             $data = [
-                'bankname' => $request->getParam('sIcepayIssuer'.$paymentId)
+                'bankname' => $issuer
             ];
 
             if (!$lastPayment) {
@@ -91,20 +87,16 @@ use ShopwarePlugin\PaymentMethods\Components\GenericPaymentMethod;
     public function getCurrentPaymentDataAsArray($userId)
     {
 
-        if(isset($this->currentPaymentMethod)) {
-
             $paymentData = Shopware()->Models()->getRepository('\Shopware\Models\Customer\PaymentData')
-                ->getCurrentPaymentDataQueryBuilder($userId, $this->currentPaymentMethod['name'])->getQuery()->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
+                ->getCurrentPaymentDataQueryBuilder($userId, static::name)->getQuery()->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
 
             if (isset($paymentData)) {
                 $arrayData = [
-                    'sDebitBankName' => $paymentData['bankName'],
+                    'sIcepayIssuer' => array($paymentData['paymentMeanId'] => $paymentData['bankName'])
                 ];
 
                 return $arrayData;
             }
-        }
-        else return []; //TODO!!
     }
 
     /**

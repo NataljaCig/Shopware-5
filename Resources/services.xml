@@ -11,10 +11,9 @@
         </service>
 
         <service id="icepay.subscriber.checkout" class="Icepay\Subscriber\Frontend\Checkout">
-            <argument>%icepay.plugin_name%</argument>
             <argument>%icepay.plugin_dir%</argument>
-            <argument type="service" id="shopware.plugin.cached_config_reader" />
             <argument type="service" id="models" />
+            <argument type="service" id="service_container" />
             <tag name="shopware.event_subscriber" />
         </service>
         <service id="icepay.subscriber.payment" class="Icepay\Subscriber\Payment">

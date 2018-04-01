@@ -27,7 +27,7 @@ class Payment implements SubscriberInterface
     public function onAddPaymentClass(\Enlight_Event_EventArgs $args)
     {
         $dirs = $args->getReturn();
-        $dirs['icepay'] = 'Icepay\Components\IcepayPayment\IcepayPaymentMethod';
+        $dirs['icepay_ideal'] = 'Icepay\Components\IcepayPayment\Ideal';
         return $dirs;
     }
 }

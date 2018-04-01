@@ -90,8 +90,6 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
                 null,
                 ['paymentBlocked' => 'Payment error']
             ); //TODO: not executed
-
-            return;
         }
 
 
@@ -126,8 +124,17 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             ->setErrorURL($router->assemble(['action' => 'cancel', 'forceSecure' => true]))
             ->setupClient();
 
-        $transactionObj = $this->webserviceObject->checkOut($this->paymentObject);
-        $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
+        try {
+            $transactionObj = $this->webserviceObject->checkOut($this->paymentObject);
+            $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
+        } catch (\Exception $ex)  {
+            return $this->forward(
+                'confirm',
+                'checkout',
+                null,
+                ['paymentBlocked' => 'Payment error']); //TODO:
+        }
+
     }
 
     /**
@@ -201,19 +208,21 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
     public function getIssuerName()
     {
         $user = $this->getUser();
-        if ($user == null || empty($user['additional']['payment']['id'])) {
-            return 'DEFAULT';
-        }
+        if ($user != null && !empty($user['additional']['payment']['id'])) {
 
-        $getPaymentDetails = $this->admin->sGetPaymentMeanById($user['additional']['payment']['id']);
+            $paymentMeanId = $user['additional']['payment']['id'];
+            $getPaymentDetails = $this->admin->sGetPaymentMeanById($paymentMeanId);
 
-        $paymentClass = $this->admin->sInitiatePaymentClass($getPaymentDetails);
-        if ($paymentClass instanceof \Icepay\Components\IcepayPayment\IcepayPaymentMethod) {
-            $data = $paymentClass->getCurrentPaymentDataAsArray(Shopware()->Session()->sUserId);
-            if (!empty($data)) {
-                $this->View()->sFormData += $data;
+            $paymentClass = $this->admin->sInitiatePaymentClass($getPaymentDetails);
+            if ($paymentClass instanceof \Icepay\Components\IcepayPayment\IcepayPaymentMethod) {
+                $data = $paymentClass->getCurrentPaymentDataAsArray(Shopware()->Session()->sUserId);
+
+                if (!empty($data) && isset($data['sIcepayIssuer'][$paymentMeanId])) {
+                    return $data['sIcepayIssuer'][$paymentMeanId];
+                }
             }
         }
+        return 'DEFAULT';
     }
 
 }

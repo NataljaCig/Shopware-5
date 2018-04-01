@@ -37,12 +37,12 @@ class PaymentMethod extends ModelEntity
     private $paymentMean;
 
 
-    /**
-     * @var string $rawPmData
-     *
-     * @ORM\Column(name="rawpmdata", type="text", nullable=false)
-     */
-    private $rawPmData;
+//    /**
+//     * @var string $rawPmData
+//     *
+//     * @ORM\Column(name="rawpmdata", type="text", nullable=false)
+//     */
+//    private $rawPmData;
 
     /**
      * Class constructor.
