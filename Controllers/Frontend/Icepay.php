@@ -98,7 +98,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         $amount = $this->getAmount();
         $billing = $user['billingaddress'];
         $countryCode = $this->getCountryCode($billing['countryId']);
-        $orderId = '010101'; //createPaymentUniqueId()
+        $orderId = $this->createPaymentUniqueId();
 
         // prepare ICEPAY Payment Object
         $this->getIcepayApiPaymentObject();

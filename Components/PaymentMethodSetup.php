@@ -121,9 +121,9 @@ class PaymentMethodSetup
             $paymentMean = $this->paymentInstaller->createOrUpdate($this->plugin->getName(), array(
                 'name' => 'icepay_' . $availablePaymentMethod->PaymentMethodCode,
                 'description' => $availablePaymentMethod->Description,
-                'action' => 'payment_icepay',
+                'action' => 'icepay',
                 'template' => 'icepay_payment.tpl',
-                'class' => 'icepay_'.$availablePaymentMethod->PaymentMethodCode,  //TODO: not supported message
+                'class' => 'icepay_'.strtolower($availablePaymentMethod->PaymentMethodCode),  //TODO: not supported message
                 'active' => 0,
                 //'position' => 1,
                 'additionalDescription' => '<img src="{link file=\'frontend/plugins/payment/img/logo/'.strtolower($availablePaymentMethod->PaymentMethodCode).'.png\'}"/>'

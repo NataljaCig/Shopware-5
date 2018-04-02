@@ -5,5 +5,5 @@ namespace Icepay\Components\IcepayPayment;
 
 class Ddebit extends IcepayPaymentMethod
 {
-    const $name = 'DDEBIT';
+    const name = 'icepay_DDEBIT';
 }

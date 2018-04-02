@@ -28,6 +28,7 @@ class Payment implements SubscriberInterface
     {
         $dirs = $args->getReturn();
         $dirs['icepay_ideal'] = 'Icepay\Components\IcepayPayment\Ideal';
+        $dirs['icepay_ddebit'] = 'Icepay\Components\IcepayPayment\Ddebit';
         return $dirs;
     }
 }
