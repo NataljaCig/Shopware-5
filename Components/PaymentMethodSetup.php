@@ -51,18 +51,6 @@ class PaymentMethodSetup
      */
     private $plugin;
 
-    /**
-     * Constructor.
-     *
-     * @param ContainerInterface $container
-     * @param ConfigReader $configReader
-     * @param ModelManager $modelManager
-     * @param PaymentInstaller $paymentInstaller
-     * @param ApiClient $apiClient
-     * @param PaymentMethodProvider $paymentMethodProvider
-     * @param Translator $translator
-     * @param Resource $resource
-     */
     public function __construct(
         ContainerInterface $container,
         ConfigReader $configReader,

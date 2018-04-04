@@ -5,6 +5,10 @@ use Icepay\Components\IcepayPayment\IcepayPaymentService;
 
 class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend_Payment
 {
+    const PAYMENTSTATUSPAID = 12;
+    const PAYMENTSTATUSOPEN = 17;
+    const PAYMENTSTATUSCANCELAD = 35;
+
 
     /**
      * @var sAdmin
@@ -125,7 +129,10 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             ->setupClient();
 
         try {
+
             $transactionObj = $this->webserviceObject->checkOut($this->paymentObject);
+
+            $this->saveOrder($transactionObj->getProviderTransactionID(), $orderId, self::PAYMENTSTATUSOPEN);
             $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
         } catch (\Exception $ex)  {
             return $this->forward(
@@ -145,6 +152,42 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
     public function returnAction()
     {
 
+        /** @var IcepayService $service */
+        $service = $this->container->get('icepay.icepay_service');
+        $user = $this->getUser();
+        $billing = $user['billingaddress'];
+
+        try {
+            /** @var PaymentResponse $response */
+            $response = $service->createPaymentResponse($this->Request());
+
+            switch ($response->status) {
+                case 'OK':
+                    $this->saveOrder(
+                        $response->transactionID,
+                        $response->paymentID,
+                        self::PAYMENTSTATUSPAID
+                    );
+                    $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
+                    break;
+                case 'OPEN':
+//                    $this->saveOrder(
+//                        $response->transactionID,
+//                        $response->paymentID,
+//                        self::PAYMENTSTATUSPAID
+//                    );
+                    $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
+                    break;
+                default:
+                    $this->forward('cancel');
+                    break;
+            }
+        }
+        catch (\Exception $ex)  {
+            $this->forward('cancel');
+            return;
+        }
+
     }
 
     /**
@@ -152,6 +195,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function cancelAction()
     {
+        
     }
     
 
