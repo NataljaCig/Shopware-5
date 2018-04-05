@@ -2,6 +2,8 @@
 
 use Icepay\Components\IcepayPayment\PaymentResponse;
 use Icepay\Components\IcepayPayment\IcepayPaymentService;
+use Shopware\Components\Random;
+
 
 class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend_Payment
 {
@@ -102,7 +104,8 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         $amount = $this->getAmount();
         $billing = $user['billingaddress'];
         $countryCode = $this->getCountryCode($billing['countryId']);
-        $orderId = $this->createPaymentUniqueId();
+        $paymentId = $this->createPaymentUniqueId();
+//        $basketSignature = $this->persistBasket();
 
         // prepare ICEPAY Payment Object
         $this->getIcepayApiPaymentObject();
@@ -113,7 +116,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             ->setPaymentMethod($name)
             ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $orderId)
             ->setCurrency($currency)
-            ->setOrderID($orderId)
+            ->setOrderID($paymentId)
             ->setReference('Order: ' . $orderId . ', Customer: ' . $billing['userID']);
 
 
@@ -132,7 +135,6 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 
             $transactionObj = $this->webserviceObject->checkOut($this->paymentObject);
 
-            $this->saveOrder($transactionObj->getProviderTransactionID(), $orderId, self::PAYMENTSTATUSOPEN);
             $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
         } catch (\Exception $ex)  {
             return $this->forward(
@@ -161,21 +163,27 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             /** @var PaymentResponse $response */
             $response = $service->createPaymentResponse($this->Request());
 
+//            $signature = $response->reference;
+//            $basket = $this->loadBasketFromSignature($signature);
+//            $this->verifyBasketSignature($signature, $basket);
+
+//            if($this->getAmount())
+
             switch ($response->status) {
                 case 'OK':
                     $this->saveOrder(
                         $response->transactionID,
-                        $response->paymentID,
+                        $response->orderID,
                         self::PAYMENTSTATUSPAID
                     );
                     $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
                     break;
                 case 'OPEN':
-//                    $this->saveOrder(
-//                        $response->transactionID,
-//                        $response->paymentID,
-//                        self::PAYMENTSTATUSPAID
-//                    );
+                    $this->saveOrder(
+                        $response->transactionID,
+                        $response->paymentID,
+                        self::PAYMENTSTATUSOPEN
+                    );
                     $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
                     break;
                 default:
@@ -267,6 +275,15 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             }
         }
         return 'DEFAULT';
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function createPaymentUniqueId()
+    {
+        //TODO: use sequence to avoid collisions
+        return Random::getAlphanumericString(10);
     }
 
 }

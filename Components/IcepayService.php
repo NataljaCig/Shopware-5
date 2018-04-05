@@ -38,7 +38,7 @@ class IcepayService
         if($result->validate()) {
             return $result->getResultData();
         }
-        throw new \Exception('Feiled to validete ICEPAY result');
+        throw new \Exception('Failed to validete ICEPAY result');
     }
     
 }
