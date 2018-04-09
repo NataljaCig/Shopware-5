@@ -24,7 +24,7 @@ class IcepayService
     
     /**
      * @param $request \Enlight_Controller_Request_Request
-     * @return PaymentResponse
+     * @return object
      */
     public function createPaymentResponse(\Enlight_Controller_Request_Request $request)
     {
@@ -39,6 +39,25 @@ class IcepayService
             return $result->getResultData();
         }
         throw new \Exception('Failed to validete ICEPAY result');
+    }
+
+    /**
+     * @param $request \Enlight_Controller_Request_Request
+     * @return object
+     */
+    public function createPostbackRequest(\Enlight_Controller_Request_Request $request)
+    {
+        $icepayPostback = new \Icepay_Postback();
+
+        $pluginConfig = $this->configReader->getByPluginName('Icepay');
+        $merchantId = $pluginConfig['merchantId'];
+        $secretKey = $pluginConfig['secretKey'];
+
+        $postback = $icepayPostback->setMerchantID($merchantId)->setSecretCode($secretKey);
+        if($postback->validate()) {
+            return $postback->getPostback();
+        }
+        throw new \Exception('Failed to validete ICEPAY postback request');
     }
     
 }

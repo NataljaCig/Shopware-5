@@ -52,6 +52,19 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         }
 
         $this->config = $this->get('shopware.plugin.config_reader')->getByPluginName('Icepay', $shop);
+
+        /** @var \Shopware\Components\Plugin $plugin */
+        $plugin = $this->get('kernel')->getPlugins()['Icepay'];
+        $this->get('template')->addTemplateDir($plugin->getPath() . '/Resources/views/');
+
+    }
+
+    /**
+     * Whitelist notifyAction
+     */
+    public function getWhitelistedCSRFActions()
+    {
+        return ['postback'];
     }
 
 
@@ -114,7 +127,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             ->setLanguage($language)
             ->setIssuer($this->getIssuerName())
             ->setPaymentMethod($name)
-            ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $orderId)
+            ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $paymentId)
             ->setCurrency($currency)
             ->setOrderID($paymentId)
             ->setReference('Order: ' . $orderId . ', Customer: ' . $billing['userID']);
@@ -156,11 +169,11 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 
         /** @var IcepayService $service */
         $service = $this->container->get('icepay.icepay_service');
-        $user = $this->getUser();
-        $billing = $user['billingaddress'];
+//        $user = $this->getUser();
+//        $billing = $user['billingaddress'];
 
         try {
-            /** @var PaymentResponse $response */
+            /** @var Icepay_Result $response */
             $response = $service->createPaymentResponse($this->Request());
 
 //            $signature = $response->reference;
@@ -203,9 +216,76 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function cancelAction()
     {
-        
+        try {
+            /** @var IcepayService $service */
+            $service = $this->container->get('icepay.icepay_service');
+            /** @var PaymentResponse $response */
+            $response = $service->createPaymentResponse($this->Request());
+            $this->View()->assign([
+                'errorMessage' => $response->statusCode
+            ]);
+
+        } catch (\Exception $ex) {
+            $this->View()->assign([
+                'errorMessage' => "We encountered an error processing your payment."
+            ]);
+        }
     }
-    
+
+
+    /**
+     * postback action method
+     */
+    public function postbackAction()
+    {
+        if(!$this->Request()->isPost())
+        {
+            die('Postback URL installed correctly');
+        }
+
+        /** @var IcepayService $service */
+        $service = $this->container->get('icepay.icepay_service');
+
+        try {
+            /** @var Icepay_Postback $postback */
+            $postback = $service->createPostbackRequest($this->Request());
+
+//            $signature = $postback->reference;
+//            $basket = $this->loadBasketFromSignature($signature);
+//            $this->verifyBasketSignature($signature, $basket);
+
+//            if($this->getAmount())
+
+            switch ($postback->status) {
+                case 'OK':
+                    $this->saveOrder(
+                        $postback->transactionID,
+                        $postback->orderID,
+                        self::PAYMENTSTATUSPAID
+                    );
+                    break;
+                case 'OPEN':
+                    $this->saveOrder(
+                        $postback->transactionID,
+                        $postback->orderID,
+                        self::PAYMENTSTATUSOPEN
+                    );
+                    break;
+                default:
+                    //todo
+                    break;
+            }
+        }
+        catch (\Exception $ex)  {
+            //$this->forward('cancel');
+            throw new \Exception($ex->message);
+            //return;
+        }
+
+        die();;
+
+    }
+
 
     /**
      * @return \Icepay_PaymentObject
