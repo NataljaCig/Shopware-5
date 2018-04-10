@@ -3,13 +3,14 @@
 use Icepay\Components\IcepayPayment\PaymentResponse;
 use Icepay\Components\IcepayPayment\IcepayPaymentService;
 use Shopware\Components\Random;
+use Shopware\Models\Order\Status;
 
 
 class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend_Payment
 {
     const PAYMENTSTATUSPAID = 12;
     const PAYMENTSTATUSOPEN = 17;
-    const PAYMENTSTATUSCANCELAD = 35;
+    const PAYMENTSTATUSCANCELED = 35;
 
 
     /**
@@ -117,8 +118,19 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         $amount = $this->getAmount();
         $billing = $user['billingaddress'];
         $countryCode = $this->getCountryCode($billing['countryId']);
+//        $orderId = $this->getTemporaryOrderId();
         $paymentId = $this->createPaymentUniqueId();
 //        $basketSignature = $this->persistBasket();
+
+        if($amount <= 0) {
+            return $this->forward('cart');
+        }
+
+        $orderNumber = $this->saveOrder(
+            $paymentId,
+            $paymentId,
+            self::PAYMENTSTATUSOPEN
+        );
 
         // prepare ICEPAY Payment Object
         $this->getIcepayApiPaymentObject();
@@ -127,10 +139,10 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             ->setLanguage($language)
             ->setIssuer($this->getIssuerName())
             ->setPaymentMethod($name)
-            ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $paymentId)
+            ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $orderNumber)
             ->setCurrency($currency)
-            ->setOrderID($paymentId)
-            ->setReference('Order: ' . $orderId . ', Customer: ' . $billing['userID']);
+            ->setOrderID($orderNumber)
+            ->setReference($paymentId);
 
 
         $router = $this->Front()->Router();
@@ -150,11 +162,13 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 
             $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
         } catch (\Exception $ex)  {
-            return $this->forward(
-                'confirm',
-                'checkout',
-                null,
-                ['paymentBlocked' => 'Payment error']); //TODO:
+
+            if($orderNumber && $orderNumber > 0 && $paymentId)
+            {
+                $this->cancelOrder($orderNember, $paymentId);
+            }
+
+            $this->forward('cancel');
         }
 
     }
@@ -176,25 +190,19 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             /** @var Icepay_Result $response */
             $response = $service->createPaymentResponse($this->Request());
 
-//            $signature = $response->reference;
-//            $basket = $this->loadBasketFromSignature($signature);
-//            $this->verifyBasketSignature($signature, $basket);
-
-//            if($this->getAmount())
-
-            switch ($response->status) {
+            switch ($response->status) { //TODO: avoid duplicate status updates on page refresh
                 case 'OK':
-                    $this->saveOrder(
-                        $response->transactionID,
-                        $response->orderID,
+                    $this->savePaymentStatus(
+                        $response->reference,
+                        $response->reference,
                         self::PAYMENTSTATUSPAID
                     );
                     $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
                     break;
                 case 'OPEN':
-                    $this->saveOrder(
-                        $response->transactionID,
-                        $response->paymentID,
+                    $this->savePaymentStatus(
+                        $response->reference,
+                        $response->reference,
                         self::PAYMENTSTATUSOPEN
                     );
                     $this->redirect(['controller' => 'checkout', 'action' => 'finish']);
@@ -216,11 +224,17 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function cancelAction()
     {
+
         try {
             /** @var IcepayService $service */
             $service = $this->container->get('icepay.icepay_service');
             /** @var PaymentResponse $response */
             $response = $service->createPaymentResponse($this->Request());
+            if($response)
+            {
+                $this->cancelOrder($response->orderID, $response->reference);
+            }
+
             $this->View()->assign([
                 'errorMessage' => $response->statusCode
             ]);
@@ -250,34 +264,31 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
             /** @var Icepay_Postback $postback */
             $postback = $service->createPostbackRequest($this->Request());
 
-//            $signature = $postback->reference;
-//            $basket = $this->loadBasketFromSignature($signature);
-//            $this->verifyBasketSignature($signature, $basket);
-
-//            if($this->getAmount())
-
             switch ($postback->status) {
                 case 'OK':
                     $this->saveOrder(
-                        $postback->transactionID,
-                        $postback->orderID,
+                        $postback->reference,
+                        $postback->reference,
                         self::PAYMENTSTATUSPAID
                     );
                     break;
                 case 'OPEN':
                     $this->saveOrder(
-                        $postback->transactionID,
-                        $postback->orderID,
+                        $postback->reference,
+                        $postback->reference,
                         self::PAYMENTSTATUSOPEN
                     );
                     break;
                 default:
-                    //todo
+                    $this->savePaymentStatus(
+                        $postback->reference,
+                        $postback->reference,
+                        self::PAYMENTSTATUSCANCELED
+                    );
                     break;
             }
         }
-        catch (\Exception $ex)  {
-            //$this->forward('cancel');
+        catch (\Exception $ex)  {;
             throw new \Exception($ex->message);
             //return;
         }
@@ -357,13 +368,44 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         return 'DEFAULT';
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function createPaymentUniqueId()
+    private function cancelOrder($orderNumber, $paymentId)
     {
-        //TODO: use sequence to avoid collisions
-        return Random::getAlphanumericString(10);
+        $this->savePaymentStatus($paymentId, $paymentId, self::PAYMENTSTATUSCANCELED );
+
+        $orderRepository = Shopware()->Models()->getRepository('Shopware\Models\Order\Order');
+        /** @var $order \Shopware\Models\Order\Order */
+        $order = $orderRepository->findOneBy(['number' => $orderNumber]);
+        if($order){
+            $statusCanceled = Shopware()->Models()->getRepository(Status::class)->find(Status::ORDER_STATE_CANCELLED_REJECTED);
+            $order->setOrderStatus($statusCanceled);
+            Shopware()->Models()->flush();
+        }
     }
+
+
+//    /**
+//     * {@inheritdoc}
+//     */
+//    public function createPaymentUniqueId()
+//    {
+//        //TODO: use sequence to avoid collisions
+//        return Random::getAlphanumericString(10);
+//    }
+
+//
+//    public function getTemporaryOrderId()
+//    {
+//        $temporaryOrderId = $this->getSession()->offsetGet('sessionId');
+//
+//        $orderRepository = Shopware()->Models()->getRepository('Shopware\Models\Order\Order');
+//        $model = $orderRepository->findOneBy(['temporaryID' => $temporaryOrderId]); //TODO: if multiple orders found
+//
+//        if($model)
+//        {
+//            return $model->getId();
+//        }
+//
+//    }
+
 
 }
