@@ -18,19 +18,52 @@
             <description lang="de">Secret Key</description>
             <description lang="en">Secret Key</description>
         </element>
+        <element type="text" scope="locale">
+            <name>successUrl</name>
+            <label lang="de">Success URL</label>
+            <label lang="en">Success URL</label>
+            <value></value>
+            <description lang="de">Success URL</description>
+            <description lang="en">Success URL</description>
+            <options>
+                <readOnly>true</readOnly>
+            </options>
+        </element>
+        <element type="text" scope="locale">
+            <name>errorUrl</name>
+            <label lang="de">Error URL</label>
+            <label lang="en">Error URL</label>
+            <value></value>
+            <description lang="de">Error URL</description>
+            <description lang="en">Error URL</description>
+            <options>
+                <readOnly>true</readOnly>
+            </options>
+        </element>
+        <element type="text" scope="locale">
+            <name>postbackUrl</name>
+            <label lang="de">Postback URL</label>
+            <label lang="en">Postback URL</label>
+            <value></value>
+            <description lang="de">Postback URL</description>
+            <description lang="en">Postback URL</description>
+            <options>
+                <readOnly>true</readOnly>
+            </options>
+        </element>
         <element type="button">
-        <name>btnSync</name>
-        <label lang="de">Synchronize</label>
-        <label lang="en">Synchronize</label>
-        <options>
-            <handler>
-                <![CDATA[
+            <name>btnSync</name>
+            <label lang="de">Synchronize</label>
+            <label lang="en">Synchronize</label>
+            <options>
+                <handler>
+                    <![CDATA[
                     function(button) {
 	                        openNewModule('Shopware.apps.IcepayPaymentMethodSync');
                         }
                     ]]>
-            </handler>
-        </options>
+                </handler>
+            </options>
         </element>
     </elements>
 </config>
