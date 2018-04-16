@@ -29,8 +29,8 @@ class Icepay extends Plugin
         /** @var \Shopware\Components\Plugin\PaymentInstaller $installer */
         $installer = $this->container->get('shopware.plugin_payment_installer');
 
-        $config = $this->container->get('config');
-        $config->offsetSet('SuccessUrl','http://...');
+//        $config = $this->container->get('config');
+//        $config->offsetSet('postbackUrl','http://...');
 
 
         $schemaTool = new SchemaTool($this->container->get('models'));
@@ -65,6 +65,7 @@ class Icepay extends Plugin
     public function activate(ActivateContext $context)
     {
         $this->setActiveFlag($context->getPlugin()->getPayments(), true);
+        $context->scheduleClearCache(InstallContext::CACHE_LIST_ALL);
     }
 
     /**

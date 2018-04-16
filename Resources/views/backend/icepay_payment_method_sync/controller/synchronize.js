@@ -1,11 +1,15 @@
 Ext.define('Shopware.apps.IcepayPaymentMethodSync.controller.Synchronize', {
-
     extend: 'Enlight.app.Controller',
 
-    synchronize: function() {
+    // init: function () {
+    //     var me = this;
+    //     Shopware.app.Application.on('synchronize-payment-methods', me.onSynchronizePaymentMethods);
+    // },
+
+    synchronize: function () {
         var me = this,
             action = me.subApplication.action;
-        
+
         Ext.Ajax.request({
             url: '{url controller=IcepayPaymentMethodSync action=sync}',
             success: function(response) {
@@ -16,14 +20,15 @@ Ext.define('Shopware.apps.IcepayPaymentMethodSync.controller.Synchronize', {
                 } else {
                     message = responseObj.message;
                 }
-                
+        
                 Shopware.Notification.createGrowlMessage(
-                    'Sync',
+                    'Payment Method Synchronization ',
                     message
                 );
-
+        
                 me.subApplication.handleSubAppDestroy(null);
             }
         });
     }
+
 });

@@ -1,6 +1,5 @@
 
 Ext.define('Shopware.apps.IcepayPaymentMethodSync', {
-    
     extend: 'Enlight.app.SubApplication',
     
     name: 'Shopware.apps.IcepayPaymentMethodSync',
@@ -13,7 +12,7 @@ Ext.define('Shopware.apps.IcepayPaymentMethodSync', {
     
     launch: function() {
         var me = this;
-        me.getController('Synchronize').synchronize();
+        return me.getController('Synchronize').synchronize();
     }
     
 });
