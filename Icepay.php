@@ -15,6 +15,7 @@ use Icepay\Bootstrap\Database;
 use Doctrine\ORM\Tools\SchemaTool;
 use Icepay\Models\PaymentMethod;
 use Icepay\Models\RawData;
+use Shopware\Components\Plugin\ConfigWriter;
 
 class Icepay extends Plugin
 {
@@ -29,8 +30,25 @@ class Icepay extends Plugin
         /** @var \Shopware\Components\Plugin\PaymentInstaller $installer */
         $installer = $this->container->get('shopware.plugin_payment_installer');
 
-//        $config = $this->container->get('config');
-//        $config->offsetSet('postbackUrl','http://...');
+        $plugin = $context->getPlugin();
+
+        //TODO: find a better way to set configuration from values
+        $shopRepository = Shopware()->Models()->getRepository('Shopware\Models\Shop\Shop');
+        $shop = $shopRepository->find($shopRepository->getActiveDefault()->getId());
+
+
+        $router = Shopware()->Container()->get('router');
+
+        $postbackUrl = $router->assemble(['module' => 'frontend', 'controller' => 'icepay', 'action' => 'postback', 'forceSecure' => true]);
+        $returnUrl = $router->assemble(['module' => 'frontend', 'controller' => 'icepay', 'action' => 'return', 'forceSecure' => true]);
+
+        /** @var ConfigWriter $configWriter */
+        $configWriter = $this->container->get('shopware.plugin.config_writer');
+        $configWriter->saveConfigElement($plugin, 'postbackUrl', $postbackUrl, $shop);
+        $configWriter->saveConfigElement($plugin, 'successUrl', $returnUrl, $shop);
+        $configWriter->saveConfigElement($plugin, 'errorUrl', $returnUrl, $shop);
+
+       // $configForms = $plugin->getConfigForms();
 
 
         $schemaTool = new SchemaTool($this->container->get('models'));
