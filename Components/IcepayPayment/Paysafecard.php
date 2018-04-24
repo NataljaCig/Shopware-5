@@ -2,8 +2,7 @@
 
 namespace Icepay\Components\IcepayPayment;
 
-
 class Paysafecard extends IcepayPaymentMethod
 {
-    const name = 'icepay_PAYSAFECARD';
+    const NAME = 'icepay_PAYSAFECARD';
 }

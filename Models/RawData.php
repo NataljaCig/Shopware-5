@@ -75,6 +75,4 @@ class RawData extends ModelEntity
     {
         return $this->rawPmData;
     }
-    
-
 }

@@ -71,7 +71,6 @@ class PaymentMethodSetup
 
     public function synchronize()
     {
-
         $pluginConfig = $this->configReader->getByPluginName('Icepay');
         $merchantId = $pluginConfig['merchantId'];
         $secretKey = $pluginConfig['secretKey'];
@@ -105,7 +104,6 @@ class PaymentMethodSetup
 
 //        $existingIcepayPaymentMethods = $this->modelManager->getRepository(PaymentMethod::class)->findBy(['scope' => 1]);
         foreach ($availablePaymentMethods->PaymentMethods as $availablePaymentMethod) {
-
             $paymentMean = $this->paymentInstaller->createOrUpdate($this->plugin->getName(), array(
                 'name' => 'icepay_' . $availablePaymentMethod->PaymentMethodCode,
                 'description' => $availablePaymentMethod->Description,
@@ -123,14 +121,10 @@ class PaymentMethodSetup
                 $paymentmethod->setPaymentMean($paymentMean);
                 $paymentmethod->setCode($availablePaymentMethod->PaymentMethodCode);
                 $this->modelManager->persist($paymentmethod);
-
             }
-
         }
 
         Shopware()->Models()->flush();
-
-
     }
 
 
@@ -143,6 +137,4 @@ class PaymentMethodSetup
         $icepay->setErrorURL('...');
         return $icepay->payment->getMyPaymentMethods();
     }
-
-
 }

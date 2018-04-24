@@ -3,7 +3,6 @@
 
 namespace Icepay\Components\IcepayPayment;
 
-
 use Doctrine\ORM\AbstractQuery;
 use ShopwarePlugin\PaymentMethods\Components\BasePaymentMethod;
 
@@ -19,13 +18,13 @@ class IcepayPaymentMethod extends BasePaymentMethod
      */
     public function validate($paymentData)
     {
-        if(!empty($paymentData)) {
+        if (!empty($paymentData)) {
             $sErrorFlag = [];
 
             $index = trim($paymentData['payment']);
             $issuers = $paymentData['sIcepayIssuer'];
 
-            if(!empty($index) && (!isset($issuers[(int)$index]) || empty($issuers[(int)$index]) )) {
+            if (!empty($index) && (!isset($issuers[(int)$index]) || empty($issuers[(int)$index]))) {
                 $sErrorFlag['sIcepayIssuer'] = true;
             }
 
@@ -53,8 +52,7 @@ class IcepayPaymentMethod extends BasePaymentMethod
         $paymentMean = Shopware()->Models()->getRepository('\Shopware\Models\Payment\Payment')->
             getPaymentsQuery(['id' => $paymentId])->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
 
-        if (substr( $paymentMean['name'], 0, 7 ) === "icepay_") {
-
+        if (substr($paymentMean['name'], 0, 7) === "icepay_") {
             $lastPayment = $this->getCurrentPaymentDataAsArray($userId);
 
             $issuers = $request->getParam('sIcepayIssuer');
@@ -86,17 +84,16 @@ class IcepayPaymentMethod extends BasePaymentMethod
      */
     public function getCurrentPaymentDataAsArray($userId)
     {
+        $paymentData = Shopware()->Models()->getRepository('\Shopware\Models\Customer\PaymentData')
+                ->getCurrentPaymentDataQueryBuilder($userId, static::NAME)->getQuery()->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
 
-            $paymentData = Shopware()->Models()->getRepository('\Shopware\Models\Customer\PaymentData')
-                ->getCurrentPaymentDataQueryBuilder($userId, static::name)->getQuery()->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
-
-            if (isset($paymentData)) {
-                $arrayData = [
+        if (isset($paymentData)) {
+            $arrayData = [
                     'sIcepayIssuer' => array($paymentData['paymentMeanId'] => $paymentData['bankName'])
                 ];
 
-                return $arrayData;
-            }
+            return $arrayData;
+        }
     }
 
     /**

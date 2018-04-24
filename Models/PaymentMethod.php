@@ -109,7 +109,7 @@ class PaymentMethod extends ModelEntity
 //     */
 //    public function setPaymentMeans($paymentMeans)
 //    {
-////        return $this->setOneToMany($paymentMeans, '\Shopware\Models\Payment\Payment', 'paymentMeans');
+    ////        return $this->setOneToMany($paymentMeans, '\Shopware\Models\Payment\Payment', 'paymentMeans');
 //        $this->paymentMeans = $paymentMeans;
 //        return $this;
 //    }
@@ -139,6 +139,4 @@ class PaymentMethod extends ModelEntity
     {
         return $this->rawPmData;
     }
-    
-
 }

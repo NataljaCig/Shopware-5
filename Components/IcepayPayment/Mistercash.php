@@ -2,8 +2,7 @@
 
 namespace Icepay\Components\IcepayPayment;
 
-
 class Mistercash extends IcepayPaymentMethod
 {
-    const name = 'icepay_MISTERCASH';
+    const NAME = 'icepay_MISTERCASH';
 }

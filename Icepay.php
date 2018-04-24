@@ -48,7 +48,7 @@ class Icepay extends Plugin
         $configWriter->saveConfigElement($plugin, 'successUrl', $returnUrl, $shop);
         $configWriter->saveConfigElement($plugin, 'errorUrl', $returnUrl, $shop);
 
-       // $configForms = $plugin->getConfigForms();
+        // $configForms = $plugin->getConfigForms();
 
 
         $schemaTool = new SchemaTool($this->container->get('models'));
@@ -58,7 +58,6 @@ class Icepay extends Plugin
             $this->container->get('models')->getClassMetadata(RawData::class),
         );
         $schemaTool->updateSchema($tables, true);
-
     }
 
     /**

@@ -3,10 +3,9 @@
 /**
  * ICEPAY REST API for PHP
  *
- * @version     0.0.2
- * @authors     Ricardo Jacobs <ricardozegt@gmail.com>
+ * @version     0.0.2 Magento 2
  * @license     BSD-2-Clause, see LICENSE.md
- * @copyright   (c) 2015, ICEPAY B.V. All rights reserved.
+ * @copyright   (c) 2016-2018, ICEPAY B.V. All rights reserved.
  */
 
 class Payment extends BaseApi
@@ -20,7 +19,7 @@ class Payment extends BaseApi
         /**
          * Information for starting a payment
          */
-        $information = array(
+        $information = [
             'Timestamp' => $this->getTimeStamp(),
             'Amount' => $data['Amount'],
             'Country' => $data['Country'],
@@ -34,7 +33,7 @@ class Payment extends BaseApi
             'URLCompleted' => $this->client->api_completed_url,
             'URLError' => $this->client->api_error_url,
             'EndUserIP' => $this->getClientIp()
-        );
+        ];
 
         /**
          * Generate the checksum for the request
@@ -63,7 +62,7 @@ class Payment extends BaseApi
         /**
          * Information for starting a recurring payment
          */
-        $information = array(
+        $information = [
             'Timestamp' => $this->getTimeStamp(),
             'Amount' => $data['Amount'],
             'Country' => $data['Country'],
@@ -78,7 +77,7 @@ class Payment extends BaseApi
             'URLCompleted' => $this->client->api_completed_url,
             'URLError' => $this->client->api_error_url,
             'EndUserIP' => $this->getClientIp()
-        );
+        ];
 
         /**
          * Generate the checksum for the request
@@ -107,7 +106,7 @@ class Payment extends BaseApi
         /**
          * Information for continuing a recurring payment
          */
-        $information = array(
+        $information = [
             'Timestamp' => $this->getTimeStamp(),
             'Amount' => $data['Amount'],
             'Country' => $data['Country'],
@@ -122,7 +121,7 @@ class Payment extends BaseApi
             'URLCompleted' => $this->client->api_completed_url,
             'URLError' => $this->client->api_error_url,
             'EndUserIP' => $this->getClientIp()
-        );
+        ];
 
         /**
          * Generate the checksum for the request
@@ -150,9 +149,9 @@ class Payment extends BaseApi
         /**
          * Information for getting active payment methods
          */
-        $information = array(
+        $information = [
             'Timestamp' => $this->getTimeStamp()
-        );
+        ];
 
         /**
          * Generate the checksum for the request
@@ -181,10 +180,10 @@ class Payment extends BaseApi
         /**
          * Information for getting active payment methods
          */
-        $information = array(
+        $information = [
             'Timestamp' => $this->getTimeStamp(),
             'PaymentID' => $data['PaymentID']
-        );
+        ];
 
         /**
          * Generate the checksum for the request

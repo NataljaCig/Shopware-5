@@ -5,7 +5,6 @@ use Icepay\Components\IcepayPayment\IcepayPaymentService;
 use Shopware\Components\Random;
 use Shopware\Models\Order\Status;
 
-
 class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend_Payment
 {
     const PAYMENTSTATUSPAID = 12;
@@ -38,10 +37,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function init()
     {
-
-
         $this->admin = Shopware()->Modules()->Admin();
-//        $this->session = Shopware()->Session();
     }
 
 
@@ -57,7 +53,6 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         /** @var \Shopware\Components\Plugin $plugin */
         $plugin = $this->get('kernel')->getPlugins()['Icepay'];
         $this->get('template')->addTemplateDir($plugin->getPath() . '/Resources/views/');
-
     }
 
     /**
@@ -80,7 +75,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 //         * Check if one of the payment methods is selected. Else return to default controller.
 //         */
         if (substr($this->getPaymentShortName(), 0, strlen('icepay_')) === 'icepay_') {
-            return $this->redirect(['action' => 'direct', 'forceSecure' => true]);
+            return $this->redirect(['action' => 'payment', 'forceSecure' => true]);
         } else {
             return $this->redirect(['controller' => 'checkout']);
         }
@@ -88,28 +83,27 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 
 
     /**
-     * Direct action method.
+     * Save order and start payment.
      *
      * Collects the payment information and transmits it to ICEPAY.
      */
-    public function directAction()
+    public function paymentAction()
     {
-
         $merchantId = $this->config['merchantId'];
         $secretKey = $this->config['secretKey'];
 
 
-        $name =  substr($this->getPaymentShortName(), 7);
+        $name = substr($this->getPaymentShortName(), 7);
         $user = $this->getUser();
         $basket = $this->getBasket();
 
         if (!$name || !$user || !$basket || empty($name)) {
-            return $this->forward(
-                'confirm',
-                'checkout',
-                null,
-                ['paymentBlocked' => 'Payment error']
-            ); //TODO: not executed
+            $context = array('payment_method' => $name, 'user' => $user, 'basket' => $basket);
+            $this->container->get('pluginlogger')->warning('ICEPAY payment action: parameter validation failed', $context);
+
+            //TODO: show error
+            $this->redirect(['controller' => 'checkout']);
+            return;
         }
 
 
@@ -120,71 +114,74 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         $countryCode = $this->getCountryCode($billing['countryId']);
 //        $orderId = $this->getTemporaryOrderId();
         $paymentId = $this->createPaymentUniqueId();
-//        $basketSignature = $this->persistBasket();
 
-        if($amount <= 0) {
+        if ($amount <= 0) {
             return $this->forward('cart');
         }
 
+        // There is no way to create order from postback request,
+        // order details are stored in the session. Return redirect
+        // can fail. Workadound: saving order before redirect to ICEPAY.
         $orderNumber = $this->saveOrder(
             $paymentId,
             $paymentId,
             self::PAYMENTSTATUSOPEN
         );
 
-        // prepare ICEPAY Payment Object
-        $this->getIcepayApiPaymentObject();
-        $this->paymentObject->setAmount($amount * 100)
-            ->setCountry($countryCode)
-            ->setLanguage($language)
-            ->setIssuer($this->getIssuerName())
-            ->setPaymentMethod($name)
-            ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $orderNumber)
-            ->setCurrency($currency)
-            ->setOrderID($orderNumber)
-            ->setReference($paymentId);
-
-
-        $router = $this->Front()->Router();
-
-        // prepare ICEPAY Webservice Object
-        $this->getIcepayApiWebserviceObject();
-        $this->webserviceObject
-            ->setMerchantID($merchantId)
-            ->setSecretCode($secretKey)
-            ->setSuccessURL($router->assemble(['action' => 'return', 'forceSecure' => true]))
-            ->setErrorURL($router->assemble(['action' => 'cancel', 'forceSecure' => true]))
-            ->setupClient();
-
         try {
+            // prepare ICEPAY Payment Object
+            $this->getIcepayApiPaymentObject();
+            $this->paymentObject->setAmount($amount * 100)
+                ->setCountry($countryCode)
+                ->setLanguage($language)
+                ->setIssuer($this->getIssuerName())
+                ->setPaymentMethod($name)
+                ->setDescription('Merchant ' . $merchantId . ' OrderID ' . $orderNumber)
+                ->setCurrency($currency)
+                ->setOrderID($orderNumber)
+                ->setReference($paymentId);
+
+
+            $router = $this->Front()->Router();
+
+            // prepare ICEPAY Webservice Object
+            $this->getIcepayApiWebserviceObject();
+            $this->webserviceObject
+                ->setMerchantID($merchantId)
+                ->setSecretCode($secretKey)
+                ->setSuccessURL($router->assemble(['action' => 'return', 'forceSecure' => true]))
+                ->setErrorURL($router->assemble(['action' => 'cancel', 'forceSecure' => true]))
+                ->setupClient();
 
             $transactionObj = $this->webserviceObject->checkOut($this->paymentObject);
 
             $this->redirect($transactionObj->getPaymentScreenURL(), array('forceSecure' => true));
-        } catch (\Exception $ex)  {
+        } catch (\Exception $ex) {
+            $message = sprintf(
+                'ICEPAY payment action: Exception %s',
+                $ex->getMessage()
+            );
+            $context = array('exception' => $ex);
+            $this->container->get('pluginlogger')->error($message, $context);
 
-            if($orderNumber && $orderNumber > 0 && $paymentId)
-            {
+            if ($orderNumber && $orderNumber > 0 && $paymentId) {
                 $this->cancelOrder($orderNember, $paymentId);
             }
 
             $this->forward('cancel');
         }
-
     }
 
     /**
      * Return action method
      *
-     * Reads the transactionResult and represents it for the customer.
+     * Update payment status, show error page or thank you page
      */
     public function returnAction()
     {
 
         /** @var IcepayService $service */
         $service = $this->container->get('icepay.icepay_service');
-//        $user = $this->getUser();
-//        $billing = $user['billingaddress'];
 
         try {
             /** @var Icepay_Result $response */
@@ -211,12 +208,17 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
                     $this->forward('cancel');
                     break;
             }
-        }
-        catch (\Exception $ex)  {
+        } catch (\Exception $ex) {
+            $message = sprintf(
+                'ICEPAY payment return: Exception %s',
+                $ex->getMessage()
+            );
+            $context = array('exception' => $ex);
+            $this->container->get('pluginlogger')->error($message, $context);
+
             $this->forward('cancel');
             return;
         }
-
     }
 
     /**
@@ -224,22 +226,26 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function cancelAction()
     {
-
         try {
             /** @var IcepayService $service */
             $service = $this->container->get('icepay.icepay_service');
             /** @var PaymentResponse $response */
             $response = $service->createPaymentResponse($this->Request());
-            if($response)
-            {
+            if ($response) {
                 $this->cancelOrder($response->orderID, $response->reference);
             }
 
             $this->View()->assign([
                 'errorMessage' => $response->statusCode
             ]);
-
         } catch (\Exception $ex) {
+            $message = sprintf(
+                'ICEPAY order canceled: Exception %s',
+                $ex->getMessage()
+            );
+            $context = array('exception' => $ex);
+            $this->container->get('pluginlogger')->error($message, $context);
+
             $this->View()->assign([
                 'errorMessage' => "We encountered an error processing your payment."
             ]);
@@ -252,8 +258,9 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     public function postbackAction()
     {
-        if(!$this->Request()->isPost())
-        {
+        Shopware()->Plugins()->Controller()->ViewRenderer()->setNoRender();
+
+        if (!$this->Request()->isPost()) {
             die('Postback URL installed correctly');
         }
 
@@ -287,14 +294,16 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
                     );
                     break;
             }
-        }
-        catch (\Exception $ex)  {;
-            throw new \Exception($ex->message);
-            //return;
-        }
+        } catch (\Exception $ex) {
+            $message = sprintf(
+                'ICEPAY postback: Exception %s',
+                $ex->getMessage()
+            );
+            $context = array('exception' => $ex);
+            $this->container->get('pluginlogger')->error($message, $context);
 
-        die();;
-
+            $this->Response()->setHttpResponseCode(500);
+        }
     }
 
 
@@ -304,7 +313,7 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
     protected function getIcepayApiPaymentObject()
     {
         if (null === $this->paymentObject) {
-            $this->paymentObject = new Icepay_PaymentObject();
+            $this->paymentObject = new \Icepay\API\Icepay_PaymentObject();
         }
         return $this->paymentObject;
     }
@@ -314,9 +323,8 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
      */
     protected function getIcepayApiWebserviceObject()
     {
-        if (null === $this->webserviceObject)
-        {
-            $this->webserviceObject = new Icepay_Webservice_Pay();
+        if (null === $this->webserviceObject) {
+            $this->webserviceObject = new \Icepay\API\Icepay_Webservice_Pay();
         }
         return $this->webserviceObject;
     }
@@ -330,7 +338,6 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
         } else {
             return 'EN';
         }
-
     }
 
     protected function getCountryCode($countryId)
@@ -352,7 +359,6 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
     {
         $user = $this->getUser();
         if ($user != null && !empty($user['additional']['payment']['id'])) {
-
             $paymentMeanId = $user['additional']['payment']['id'];
             $getPaymentDetails = $this->admin->sGetPaymentMeanById($paymentMeanId);
 
@@ -370,12 +376,12 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 
     private function cancelOrder($orderNumber, $paymentId)
     {
-        $this->savePaymentStatus($paymentId, $paymentId, self::PAYMENTSTATUSCANCELED );
+        $this->savePaymentStatus($paymentId, $paymentId, self::PAYMENTSTATUSCANCELED);
 
         $orderRepository = Shopware()->Models()->getRepository('Shopware\Models\Order\Order');
         /** @var $order \Shopware\Models\Order\Order */
         $order = $orderRepository->findOneBy(['number' => $orderNumber]);
-        if($order){
+        if ($order) {
             $statusCanceled = Shopware()->Models()->getRepository(Status::class)->find(Status::ORDER_STATE_CANCELLED_REJECTED);
             $order->setOrderStatus($statusCanceled);
             Shopware()->Models()->flush();
@@ -406,6 +412,4 @@ class Shopware_Controllers_Frontend_Icepay extends Shopware_Controllers_Frontend
 //        }
 //
 //    }
-
-
 }

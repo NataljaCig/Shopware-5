@@ -4,10 +4,8 @@ namespace Icepay\Subscriber;
 
 use Enlight\Event\SubscriberInterface;
 
-
 class Payment implements SubscriberInterface
 {
-
     public static function getSubscribedEvents()
     {
         return [
@@ -29,6 +27,8 @@ class Payment implements SubscriberInterface
         $dirs = $args->getReturn();
         $dirs['icepay_ideal'] = 'Icepay\Components\IcepayPayment\Ideal';
         $dirs['icepay_ddebit'] = 'Icepay\Components\IcepayPayment\Ddebit';
+        $dirs['icepay_creditcard'] = 'Icepay\Components\IcepayPayment\Creditcard';
+        //TODO: add missing pm
         return $dirs;
     }
 }

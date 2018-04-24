@@ -12,7 +12,7 @@ Ext.define('Shopware.apps.IcepayPaymentMethodSync.controller.Synchronize', {
 
         Ext.Ajax.request({
             url: '{url controller=IcepayPaymentMethodSync action=sync}',
-            success: function(response) {
+            success: function (response) {
                 var responseObj = Ext.JSON.decode(response.responseText),
                     message;
                 if (responseObj.success) {

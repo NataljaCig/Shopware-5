@@ -24,8 +24,7 @@ class Shopware_Controllers_Backend_IcepayPaymentMethodSync extends Shopware_Cont
             $pluginConfig = $this->get('shopware.plugin.config_reader')->getByPluginName('Icepay');
             $service = $this->container->get('icepay.payment_method_setup_service');
             $result = $service->synchronize();
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $this->view->assign([
                 'success' => false,
                 'message' => $e->getMessage()

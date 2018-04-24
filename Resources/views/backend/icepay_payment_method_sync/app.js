@@ -10,7 +10,7 @@ Ext.define('Shopware.apps.IcepayPaymentMethodSync', {
         'Synchronize'
     ],
     
-    launch: function() {
+    launch: function () {
         var me = this;
         return me.getController('Synchronize').synchronize();
     }

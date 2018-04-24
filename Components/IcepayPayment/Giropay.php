@@ -2,8 +2,7 @@
 
 namespace Icepay\Components\IcepayPayment;
 
-
 class Giropay extends IcepayPaymentMethod
 {
-    const name = 'icepay_GIROPAY';
+    const NAME = 'icepay_GIROPAY';
 }

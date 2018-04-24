@@ -42,7 +42,8 @@ class Checkout implements SubscriberInterface
 
     public function __construct($pluginDirectory, ModelManager $modelManager, ContainerInterface $container)
     {
-        $this->pluginDirectory = $pluginDirectory;;
+        $this->pluginDirectory = $pluginDirectory;
+        ;
         $this->modelManager = $modelManager;
         $this->container = $container;
     }
@@ -101,18 +102,15 @@ class Checkout implements SubscriberInterface
         
         $availableIssuers = array();
         foreach ($this->getFilteredPaymentmethods() as $pm) {
-
-            if(sizeof($pm->Issuers) > 1) {
-                foreach($pm->Issuers as $issuer) {
+            if (sizeof($pm->Issuers) > 1) {
+                foreach ($pm->Issuers as $issuer) {
                     $availableIssuers['icepay_'.$pm->PaymentMethodCode][] = array( 'key' =>  $issuer->IssuerKeyword, 'description' => $issuer->Description);
                 }
-
             }
         }
 
         $view->assign('sIssuers', $availableIssuers);
         $view->addTemplateDir($this->pluginDirectory . '/Resources/views');
-
     }
 
 
@@ -122,9 +120,7 @@ class Checkout implements SubscriberInterface
      */
     protected function getFilteredPaymentmethods()
     {
-
         if (!isset($this->filteredPaymentMethods)) {
-
             $basket = Shopware()->Modules()->Basket();
             $session = Shopware()->Session();
             $countryId = $session->get('sCountry'); //Todo: check null
@@ -137,7 +133,7 @@ class Checkout implements SubscriberInterface
 
             $rawData = $this->modelManager->getRepository(RawData::class)->findOneBy(array('scope' => 1));  //TODO: if null
 
-            $filter = new \Icepay_Webservice_Paymentmethod();
+            $filter = new \Icepay\API\Icepay_Webservice_Paymentmethod();
             $filter->loadFromArray(unserialize($rawData->getRawPmData()));
             $filter->filterByCurrency($currency)
                 ->filterByCountry($country)
@@ -165,6 +161,4 @@ class Checkout implements SubscriberInterface
 
         return $country->getIso();
     }
-
-
 }

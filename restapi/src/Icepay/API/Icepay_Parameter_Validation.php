@@ -1,13 +1,14 @@
 <?php
+
 /**
- * Created by PhpStorm.
- * User: isgn
- * Date: 02.11.2015
- * Time: 13:55
+ * ICEPAY REST API for PHP
+ *
+ * @version     0.0.2 Magento 2
+ * @license     BSD-2-Clause, see LICENSE.md
+ * @copyright   (c) 2016-2018, ICEPAY B.V. All rights reserved.
  */
 
 namespace Icepay\API;
-
 
 class Icepay_Parameter_Validation
 {

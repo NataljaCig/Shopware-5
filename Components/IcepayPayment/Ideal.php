@@ -2,8 +2,7 @@
 
 namespace Icepay\Components\IcepayPayment;
 
-
 class Ideal extends IcepayPaymentMethod
 {
-    const name = 'icepay_IDEAL';
+    const NAME = 'icepay_IDEAL';
 }
